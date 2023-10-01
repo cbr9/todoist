@@ -173,16 +173,29 @@ func main() {
 		if exists, _ := Exists(configFile); exists {
 			// Ensure that the config file has permission 0600, because it contains
 			// the API token and should only be read by the user.
-			// This is only necessary iff the config file exists, which may not be the case
+			// This is only necessary iff the config file exists and the token is defined in it, which may not be the case
 			// when config is loaded from environment variables.
+
+			file, err := os.ReadFile(configFile)
+			if err != nil {
+				panic(fmt.Errorf("Fatal error config file: %s \n", err))
+			}
+
+			var tmpConfig map[string]string
+			json.Unmarshal(file, &tmpConfig)
+
 			fi, err := os.Lstat(configFile)
 			if err != nil {
 				panic(fmt.Errorf("Fatal error config file: %s \n", err))
 			}
-			if runtime.GOOS != "windows" && fi.Mode().Perm() != 0600 {
+
+			_, tokenDefinedInConfigFile := tmpConfig["token"]
+
+			if tokenDefinedInConfigFile && runtime.GOOS != "windows" && fi.Mode().Perm() != 0600 {
 				panic(fmt.Errorf("Config file has wrong permissions. Make sure to give permissions 600 to file %s \n", configFile))
 			}
 		}
+
 		config := &todoist.Config{AccessToken: viper.GetString("token"), DebugMode: c.Bool("debug"), Color: viper.GetBool("color"), DateFormat: viper.GetString("shortdateformat"), DateTimeFormat: viper.GetString("shortdatetimeformat")}
 
 		client := todoist.NewClient(config)
